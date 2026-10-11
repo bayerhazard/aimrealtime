@@ -1,12 +1,26 @@
 image:
   repository: git.aimighty.olares.de/aimighty/aimrealtime
-  tag: "0.5.0"
+  tag: "0.5.1"
   # Quoted single string: Olares' app-service mis-parses an unquoted
   # "repo:tag" value that comes from a YAML mapping.
-  full: "git.aimighty.olares.de/aimighty/aimrealtime:0.5.0"
+  full: "git.aimighty.olares.de/aimighty/aimrealtime:0.5.1"
   pullPolicy: IfNotPresent
 
 port: 8080
+
+# Model Console sidecar (Olares Router discovery). Serves the model card on
+# :8090 and backs the sharedentrances-api Service; waits for the advertised
+# model id on the app's /v1/models before declaring the model ready.
+llmInit:
+  image: docker.io/beclab/llm-init:v1.7.12
+  port: 8090
+  resources:
+    limits:
+      cpu: "1"
+      memory: 4Gi
+    requests:
+      cpu: "200m"
+      memory: 256Mi
 
 # CPU-only orchestrator: keep it off the worker, whose CPU-request budget is
 # the tighter one; the master has no GPU work for this app to contend with.
@@ -47,6 +61,12 @@ livenessProbe:
 
 service:
   type: ClusterIP
+
+# Olares injects the real userspace PVC paths at install time (permission:
+# appCache/appCommon); these defaults only keep `helm template` nil-free.
+userspace:
+  appCache: /olares/rootfs/userspace/pvc-userspace-aimighty-m27rxxbszvgk1u2l
+  appCommon: /olares/rootfs/userspace/pvc-userspace-aimighty-m27rxxbszvgk1u2l
 
 # Olares fills this map at install time from the envs: block in
 # OlaresManifest.yaml. The empty default keeps `helm template` nil-free.

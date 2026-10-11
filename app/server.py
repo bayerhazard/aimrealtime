@@ -39,6 +39,25 @@ async def healthz() -> JSONResponse:
     return JSONResponse({"status": "ok", "version": APP_VERSION, "active_calls": ACTIVE_CALLS, "config": CFG.masked()})
 
 
+@app.get("/v1/models")
+async def models() -> JSONResponse:
+    # llm-init (Model Console) waits for exactly this id on the engine's
+    # /v1/models before it declares the model ready to the Olares Router.
+    return JSONResponse(
+        {
+            "object": "list",
+            "data": [
+                {
+                    "id": CFG.advertised_model,
+                    "object": "model",
+                    "created": 0,
+                    "owned_by": "aimighty",
+                }
+            ],
+        }
+    )
+
+
 @app.websocket("/v1/realtime")
 async def realtime(ws: WebSocket) -> None:
     global ACTIVE_CALLS

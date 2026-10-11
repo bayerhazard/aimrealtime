@@ -15,3 +15,22 @@ spec:
       protocol: TCP
   selector:
     app: aimrealtime
+---
+# The Service behind the sharedEntrances stub: :80 -> llm-init:8090,
+# in-cluster only (no edge, no SSO). This is what the Olares Router reads
+# the model card from.
+apiVersion: v1
+kind: Service
+metadata:
+  name: sharedentrances-api
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: aimrealtime
+spec:
+  selector:
+    app: aimrealtime
+  ports:
+    - name: http
+      port: 80
+      targetPort: {{ .Values.llmInit.port }}
+      protocol: TCP

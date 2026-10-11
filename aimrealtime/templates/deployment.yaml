@@ -24,6 +24,30 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       enableServiceLinks: false
+      volumes:
+        - name: hf-cache
+          hostPath:
+            path: "{{ .Values.userspace.appCommon }}/huggingface"
+            type: DirectoryOrCreate
+        - name: run-state
+          hostPath:
+            path: "{{ .Values.userspace.appCache }}/llm-init-run/aimrealtime"
+            type: DirectoryOrCreate
+      initContainers:
+        # llm-init runs as UID 1000 and must own its cache and run dir.
+        - name: init-chown
+          image: docker.io/beclab/aboveos-busybox:1.37.0
+          command:
+            - sh
+            - -c
+            - "mkdir -p /cache/hf/hub/.locks && chown -R 1000:1000 /cache/hf/hub /run/llm-init || true"
+          volumeMounts:
+            - name: hf-cache
+              mountPath: /cache/hf/hub
+            - name: run-state
+              mountPath: /run/llm-init
+          securityContext:
+            runAsUser: 0
       containers:
       - name: aimrealtime
         image: "{{ .Values.image.full }}"
@@ -62,3 +86,65 @@ spec:
             {{- toYaml .Values.startupProbe | nindent 10 }}
         livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 10 }}
+      # Model Console (llm-init): serves the card the Olares Router reads to
+      # fill default-audio-s2s (MODEL_SUPPORTS=supports_audio_s2s) and proxies
+      # /v1/* to this pod's service on 8080. It waits for the advertised model
+      # id on /v1/models before declaring the model ready.
+      - name: llm-init
+        image: "{{ .Values.llmInit.image }}"
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: ENGINE_KIND
+            value: "audio"
+          - name: LLM_INIT_TEST_ENGINE_URL
+            value: "http://127.0.0.1:{{ .Values.port }}"
+          - name: MODEL_NAME
+            value: {{ .Values.olaresEnv.ADVERTISED_MODEL | default "aimrealtime" | quote }}
+          - name: MODEL_MODE
+            value: {{ .Values.olaresEnv.MODEL_MODE | default "audio" | quote }}
+          - name: MODEL_SUPPORTS
+            value: {{ .Values.olaresEnv.MODEL_SUPPORTS | default "supports_audio_s2s" | quote }}
+          - name: MODEL_SOURCE
+            value: {{ .Values.olaresEnv.MODEL_SOURCE | default "hf://Qwen/Qwen3-0.6B --include config.json" | quote }}
+          {{- if .Values.olaresEnv.HF_ENDPOINT }}
+          - name: HF_ENDPOINT
+            value: "{{ .Values.olaresEnv.HF_ENDPOINT }}"
+          {{- end }}
+          {{- if .Values.olaresEnv.HF_TOKEN }}
+          - name: HF_TOKEN
+            value: "{{ .Values.olaresEnv.HF_TOKEN }}"
+          {{- end }}
+          - name: MAX_CONCURRENT_DOWNLOADS
+            value: "1"
+          - name: RUN_DIR
+            value: /run/llm-init
+          - name: PORT
+            value: "{{ .Values.llmInit.port }}"
+          - name: LOG_LEVEL
+            value: "{{ .Values.olaresEnv.LOG_LEVEL | default "info" }}"
+          - name: LOG_FORMAT
+            value: json
+        ports:
+          - containerPort: {{ .Values.llmInit.port }}
+            name: model-console
+        readinessProbe:
+          httpGet:
+            path: /livez
+            port: {{ .Values.llmInit.port }}
+          initialDelaySeconds: 3
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        livenessProbe:
+          httpGet:
+            path: /livez
+            port: {{ .Values.llmInit.port }}
+          periodSeconds: 30
+          timeoutSeconds: 5
+        resources:
+            {{- toYaml .Values.llmInit.resources | nindent 10 }}
+        volumeMounts:
+          - name: hf-cache
+            mountPath: /cache/hf/hub
+          - name: run-state
+            mountPath: /run/llm-init
