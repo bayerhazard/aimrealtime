@@ -7,6 +7,7 @@ the services are reachable pod-to-pod.
 
 import json
 import logging
+import uuid
 
 import aiohttp
 
@@ -55,11 +56,18 @@ class Upstreams:
             raise UpstreamError(f"stt transport: {exc}") from exc
 
     async def chat(self, messages: list[dict], tools: list[dict]) -> dict:
+        # Qwen3.8 on this vLLM stack is fragile around tool calling: with
+        # enable_thinking=false it degenerates into repetition loops once the
+        # prefix cache has seen the prompt, and non-zero sampling loops inside
+        # the thinking block. Verified stable: thinking on (default), greedy,
+        # a generous token budget, and a unique prefix nonce per request.
+        if messages and messages[0].get("role") == "system":
+            messages = list(messages)
+            messages[0] = dict(messages[0], content=f"[call {uuid.uuid4().hex[:10]}] " + str(messages[0].get("content") or ""))
         payload: dict = {
             "model": self.cfg.llm_model,
             "messages": messages,
-            "chat_template_kwargs": {"enable_thinking": False},
-            "max_tokens": 700,
+            "max_tokens": 2000,
             "temperature": 0.0,
         }
         cleaned = []
