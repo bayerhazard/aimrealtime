@@ -1,9 +1,9 @@
 image:
   repository: git.aimighty.olares.de/aimighty/aimrealtime
-  tag: "0.5.1"
+  tag: "0.5.2"
   # Quoted single string: Olares' app-service mis-parses an unquoted
   # "repo:tag" value that comes from a YAML mapping.
-  full: "git.aimighty.olares.de/aimighty/aimrealtime:0.5.1"
+  full: "git.aimighty.olares.de/aimighty/aimrealtime:0.5.2"
   pullPolicy: IfNotPresent
 
 port: 8080

@@ -12,7 +12,7 @@ metadata:
   icon: https://git.aimighty.olares.de/aimighty/aimrealtime/raw/branch/main/icon.png
   description: Realtime voice endpoint for Open WebUI 0.12 calls — orchestrates the AIM Qwen3 ASR, Qwen3.8 and OmniVoice apps over their OpenAI-compatible APIs, CPU only
   title: AIM Realtime Voice
-  version: '26.10.7'
+  version: '26.10.8'
   categories:
     - Audio
     - Applications
@@ -39,9 +39,11 @@ entrances:
     invisible: true
 
 spec:
-  versionName: '26.10.7'
+  versionName: '26.10.8'
   onlyAdmin: true
   upgradeDescription: |
+    v26.10.8: MODEL_NAME env so the Router attaches the model lifecycle to the
+    app (spec show/status via --app), like the other model applications.
     v26.10.7: Model Console (llm-init) sidecar + shared entrance so the Olares
     Router discovers the service as an audio-s2s model (supports_audio_s2s)
     and fills default-audio-s2s, analogous to default-chat. Adds /v1/models.
@@ -134,22 +136,29 @@ envs:
     applyOnChange: true
     default: "aimrealtime"
     description: "Model id this endpoint advertises (Open WebUI sends it as ?model=)."
+  - envName: MODEL_NAME
+    required: true
+    type: string
+    editable: false
+    applyOnChange: false
+    default: "aimrealtime"
+    description: "Model id the app serves. The Olares Router reads MODEL_NAME from the app envs to attach the model lifecycle to the application."
   - envName: MODEL_MODE
-    required: false
+    required: true
     type: string
     editable: false
     applyOnChange: false
     default: "audio"
     description: "Model Console card mode. Must stay 'audio' for the Router's audio-s2s category."
   - envName: MODEL_SUPPORTS
-    required: false
+    required: true
     type: string
     editable: false
     applyOnChange: false
     default: "supports_audio_s2s"
     description: "Capability flags the Router reconciles into default categories; supports_audio_s2s fills default-audio-s2s."
   - envName: MODEL_SOURCE
-    required: false
+    required: true
     type: string
     editable: false
     applyOnChange: false

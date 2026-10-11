@@ -5,6 +5,7 @@ import asyncio
 import base64
 import json
 import os
+import socket
 import sys
 import time
 import wave
@@ -45,7 +46,12 @@ def read_pcm(path: str) -> tuple[bytes, int]:
 async def main() -> int:
     pcm, rate = read_pcm(WAV)
     assert rate == 24000, f"need 24k wav, got {rate}"
-    async with websockets.connect(URL, additional_headers={"Authorization": f"Bearer {KEY}"}, max_size=None) as ws:
+    async with websockets.connect(
+        URL,
+        additional_headers={"Authorization": f"Bearer {KEY}"},
+        max_size=None,
+        family=socket.AF_INET,
+    ) as ws:
         ev = json.loads(await ws.recv())
         print(f"[recv] {ev['type']}")
         await ws.send(

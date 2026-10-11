@@ -97,7 +97,7 @@ spec:
           - name: LLM_INIT_TEST_ENGINE_URL
             value: "http://127.0.0.1:{{ .Values.port }}"
           - name: MODEL_NAME
-            value: {{ .Values.olaresEnv.ADVERTISED_MODEL | default "aimrealtime" | quote }}
+            value: {{ .Values.olaresEnv.MODEL_NAME | default (.Values.olaresEnv.ADVERTISED_MODEL | default "aimrealtime") | quote }}
           - name: MODEL_MODE
             value: {{ .Values.olaresEnv.MODEL_MODE | default "audio" | quote }}
           - name: MODEL_SUPPORTS
