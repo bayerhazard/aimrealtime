@@ -16,14 +16,18 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    container:
-      image: catthehacker/ubuntu:act-24.04
-      options: --network host
     env:
       TAG: ${{ inputs.tag || '0.1.0' }}
-      DOCKER_HOST: tcp://127.0.0.1:2375
     steps:
       - uses: actions/checkout@v4
+
+      - name: Point Docker at the dind sidecar
+        # The job runs in its own bridge network; the runner pod's dind is the
+        # network's gateway. 127.0.0.1 only works inside the runner pod itself.
+        run: |
+          GW=$(ip route | awk '/^default/ {print $3; exit}')
+          echo "DOCKER_HOST=tcp://${GW}:2375" >> "$GITHUB_ENV"
+          docker version
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
