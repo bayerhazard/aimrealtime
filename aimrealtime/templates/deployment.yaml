@@ -25,14 +25,12 @@ spec:
       {{- end }}
       enableServiceLinks: false
       volumes:
+        # Self-contained: the Model Console only fetches a placeholder config,
+        # so an ephemeral cache keeps this app free of userspace paths.
         - name: hf-cache
-          hostPath:
-            path: "{{ .Values.userspace.appCommon }}/huggingface"
-            type: DirectoryOrCreate
+          emptyDir: {}
         - name: run-state
-          hostPath:
-            path: "{{ .Values.userspace.appCache }}/llm-init-run/aimrealtime"
-            type: DirectoryOrCreate
+          emptyDir: {}
       initContainers:
         # llm-init runs as UID 1000 and must own its cache and run dir.
         - name: init-chown

@@ -62,12 +62,6 @@ livenessProbe:
 service:
   type: ClusterIP
 
-# Olares injects the real userspace PVC paths at install time (permission:
-# appCache/appCommon); these defaults only keep `helm template` nil-free.
-userspace:
-  appCache: /olares/rootfs/userspace/pvc-userspace-aimighty-m27rxxbszvgk1u2l
-  appCommon: /olares/rootfs/userspace/pvc-userspace-aimighty-m27rxxbszvgk1u2l
-
 # Olares fills this map at install time from the envs: block in
 # OlaresManifest.yaml. The empty default keeps `helm template` nil-free.
 olaresEnv: {}
