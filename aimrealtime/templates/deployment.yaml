@@ -1,0 +1,64 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aimrealtime
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: aimrealtime
+spec:
+  replicas: {{ .Values.workloads.aimrealtime.replicaCount }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      app: aimrealtime
+  strategy:
+    type: {{ .Values.strategy.type }}
+  template:
+    metadata:
+      labels:
+        app: aimrealtime
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      enableServiceLinks: false
+      containers:
+      - name: aimrealtime
+        image: "{{ .Values.image.full }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+          - name: ADVERTISED_MODEL
+            value: {{ .Values.olaresEnv.ADVERTISED_MODEL | default "aimrealtime" | quote }}
+          - name: API_KEY
+            value: {{ .Values.olaresEnv.API_KEY | default "" | quote }}
+          - name: UPSTREAM_STT_URL
+            value: {{ .Values.olaresEnv.UPSTREAM_STT_URL | default "https://d6df5317.aimighty.olares.de/v1" | quote }}
+          - name: UPSTREAM_TTS_URL
+            value: {{ .Values.olaresEnv.UPSTREAM_TTS_URL | default "https://adf17dad.aimighty.olares.de/v1" | quote }}
+          - name: UPSTREAM_LLM_URL
+            value: {{ .Values.olaresEnv.UPSTREAM_LLM_URL | default "https://ef3336a5.aimighty.olares.de/v1" | quote }}
+          - name: STT_MODEL
+            value: {{ .Values.olaresEnv.STT_MODEL | default "Qwen/Qwen3-ASR-1.7B" | quote }}
+          - name: TTS_MODEL
+            value: {{ .Values.olaresEnv.TTS_MODEL | default "omnivoice" | quote }}
+          - name: LLM_MODEL
+            value: {{ .Values.olaresEnv.LLM_MODEL | default "qwen3.8-27b" | quote }}
+          - name: DEFAULT_VOICE
+            value: {{ .Values.olaresEnv.DEFAULT_VOICE | default "female" | quote }}
+          - name: VAD_THRESHOLD
+            value: {{ .Values.olaresEnv.VAD_THRESHOLD | default "0.5" | quote }}
+          - name: MAX_CALLS
+            value: {{ .Values.olaresEnv.MAX_CALLS | default "2" | quote }}
+          - name: LOG_LEVEL
+            value: {{ .Values.olaresEnv.LOG_LEVEL | default "info" | quote }}
+        ports:
+          - containerPort: {{ .Values.port }}
+            name: http
+        resources:
+            {{- toYaml .Values.resources | nindent 10 }}
+        startupProbe:
+            {{- toYaml .Values.startupProbe | nindent 10 }}
+        livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 10 }}

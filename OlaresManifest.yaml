@@ -1,0 +1,184 @@
+---
+olaresManifest.version: '0.12.0'
+olaresManifest.type: app
+apiVersion: 'v3'
+
+workloadReplicas:
+  aimrealtime: 1
+
+metadata:
+  name: aimrealtime
+  appid: aimrealtime
+  icon: https://raw.githubusercontent.com/bayerhazard/aimrealtime/main/icon.png
+  description: Realtime voice endpoint for Open WebUI 0.12 calls — orchestrates the AIM Qwen3 ASR, Qwen3.8 and OmniVoice apps over their OpenAI-compatible APIs, CPU only
+  title: AIM Realtime Voice
+  version: '26.10.1'
+  categories:
+    - Audio
+    - Applications
+
+entrances:
+  - name: aimrealtime
+    port: 8080
+    host: aimrealtime
+    title: AIM Realtime Voice
+    icon: https://raw.githubusercontent.com/bayerhazard/aimrealtime/main/icon.png
+    authLevel: internal
+    invisible: true
+
+spec:
+  versionName: '26.10.1'
+  upgradeDescription: |
+    v26.10.1: Initial Release for AImighty. Speaks the OpenAI Realtime WebSocket
+    protocol for Open WebUI 0.12 Realtime calls and orchestrates the installed
+    AIM Qwen3 1.7B ASR, AIM Qwen3.8 27B and AIM OmniVoice 0.6B TTS apps.
+    CPU only — no GPU, no additional VRAM. Built for Olares 1.12.7.
+  fullDescription: |
+    **AIM Realtime Voice** gives Open WebUI 0.12 its Realtime call mode without a
+    new speech model: it exposes the OpenAI Realtime WebSocket endpoint that Open
+    WebUI's bridge talks to and drives the AIM speech and chat apps you already
+    have through their OpenAI-compatible APIs.
+
+    **Model**
+    None of its own. Speech recognition comes from AIM Qwen3 1.7B ASR
+    (`/v1/audio/transcriptions`), the conversation from AIM Qwen3.8 27B
+    (`/v1/chat/completions`, thinking disabled per request for latency) and the
+    voice from AIM OmniVoice 0.6B TTS (`/v1/audio/speech`). All three run in
+    their own applications; this app only orchestrates.
+
+    **Inference Engine**
+    A small Python service (FastAPI, Silero VAD on CPU) that speaks the realtime
+    event set Open WebUI's voice bridge uses: session handshake, server-side VAD,
+    live transcription events, response lifecycle, barge-in, and the
+    `generate_chat_completion` function call Open WebUI uses to hand substantive
+    questions to the chat's selected model. Runs on the master node, no GPU.
+
+    **Key Features**
+    - Open WebUI 0.12 Realtime call mode: Admin > Settings > Audio > Voice calls
+    - Reuses the installed AIM ASR / LLM / TTS apps; additional VRAM: zero
+    - Function-call handoff to the chat model, with tool approvals staying in chat
+    - Configurable upstream URLs, voice and concurrency; bearer-protected endpoint
+
+    **API**
+    ```bash
+    # Open WebUI base URL (Admin > Audio > Voice calls)
+    https://<appid>.aimighty.olares.de/v1
+    # Health
+    curl https://<appid>.aimighty.olares.de/healthz
+    ```
+
+    **Resource Usage**
+    CPU: 0.25-2 cores, RAM: 0.5-2 GiB, Disk: ~300 MB image. No GPU.
+
+  developer: Aimighty
+  website: https://github.com/bayerhazard/aimrealtime
+  sourceCode: https://github.com/bayerhazard/aimrealtime
+  submitter: Aimighty
+  locale:
+    - en-US
+  supportArch:
+    - amd64
+  requiredCpu: "250m"
+  limitedCpu: "2"
+  requiredMemory: 512Mi
+  limitedMemory: 2Gi
+  requiredDisk: 100Mi
+  limitedDisk: 2Gi
+
+permission: {}
+
+options:
+  apiTimeout: 0
+  dependencies:
+    - name: olares
+      version: '>=1.12.7-0'
+      type: system
+
+envs:
+  - envName: ADVERTISED_MODEL
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: "aimrealtime"
+    description: "Model id this endpoint advertises (Open WebUI sends it as ?model=)."
+  - envName: API_KEY
+    required: true
+    type: password
+    editable: true
+    applyOnChange: true
+    regex: "^.{16,}$"
+    description: "Bearer token Open WebUI must send (Admin > Audio > Voice calls > API key)."
+  - envName: UPSTREAM_STT_URL
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: "https://d6df5317.aimighty.olares.de/v1"
+    description: "OpenAI-compatible transcription endpoint (AIM Qwen3 ASR)."
+  - envName: UPSTREAM_LLM_URL
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: "https://ef3336a5.aimighty.olares.de/v1"
+    description: "OpenAI-compatible chat endpoint (AIM Qwen3.8 27B); thinking is disabled per request."
+  - envName: UPSTREAM_TTS_URL
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: "https://adf17dad.aimighty.olares.de/v1"
+    description: "OpenAI-compatible speech endpoint (AIM OmniVoice TTS)."
+  - envName: STT_MODEL
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: "Qwen/Qwen3-ASR-1.7B"
+  - envName: LLM_MODEL
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: "qwen3.8-27b"
+  - envName: TTS_MODEL
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: "omnivoice"
+  - envName: DEFAULT_VOICE
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: "female"
+    description: "OmniVoice preset used when Open WebUI's voice name is unknown."
+  - envName: VAD_THRESHOLD
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: "0.5"
+  - envName: MAX_CALLS
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: "2"
+  - envName: LOG_LEVEL
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: "info"
+    options:
+    - title: Debug
+      value: debug
+    - title: Info
+      value: info
+    - title: Warn
+      value: warn
+    - title: Error
+      value: error

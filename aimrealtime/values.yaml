@@ -1,0 +1,53 @@
+image:
+  repository: ghcr.io/bayerhazard/aimrealtime
+  tag: "0.1.0"
+  # Quoted single string: Olares' app-service mis-parses an unquoted
+  # "repo:tag" value that comes from a YAML mapping.
+  full: "ghcr.io/bayerhazard/aimrealtime:0.1.0"
+  pullPolicy: IfNotPresent
+
+port: 8080
+
+# CPU-only orchestrator: keep it off the worker, whose CPU-request budget is
+# the tighter one; the master has no GPU work for this app to contend with.
+nodeSelector:
+  kubernetes.io/hostname: olares
+
+workloads:
+  aimrealtime:
+    replicaCount: 1
+
+revisionHistoryLimit: 1
+strategy:
+  type: Recreate
+
+resources:
+  limits:
+    cpu: "2"
+    memory: 2Gi
+  requests:
+    cpu: "250m"
+    memory: 512Mi
+
+startupProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  failureThreshold: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+service:
+  type: ClusterIP
+
+# Olares fills this map at install time from the envs: block in
+# OlaresManifest.yaml. The empty default keeps `helm template` nil-free.
+olaresEnv: {}
