@@ -12,7 +12,7 @@ metadata:
   icon: https://git.aimighty.olares.de/aimighty/aimrealtime/raw/branch/main/icon.png
   description: Realtime voice endpoint for Open WebUI 0.12 calls — orchestrates the AIM Qwen3 ASR, Qwen3.8 and OmniVoice apps over their OpenAI-compatible APIs, CPU only
   title: AIM Realtime Voice
-  version: '26.10.4'
+  version: '26.10.5'
   categories:
     - Audio
     - Applications
@@ -27,8 +27,9 @@ entrances:
     invisible: true
 
 spec:
-  versionName: '26.10.4'
+  versionName: '26.10.5'
   upgradeDescription: |
+    v26.10.5: Image rebuilt so the version the service reports matches the chart.
     v26.10.4: Icon and manifest URLs moved to the Gitea raw endpoint (single
     source of truth; the GitHub mirror does not carry this repository).
     v26.10.3: Deterministic tool decisions (greedy chat sampling, cleaned tool
