@@ -60,14 +60,30 @@ class Upstreams:
             "messages": messages,
             "chat_template_kwargs": {"enable_thinking": False},
             "max_tokens": 700,
+            "temperature": 0.0,
         }
-        if tools:
-            payload["tools"] = [
-                {"type": "function", "function": t}
-                for t in tools
-                if isinstance(t, dict) and t.get("name")
-            ]
+        cleaned = []
+        for tool in tools or []:
+            if not isinstance(tool, dict):
+                continue
+            function = tool.get("function") if isinstance(tool.get("function"), dict) else tool
+            name = function.get("name")
+            if not name:
+                continue
+            cleaned.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": str(name),
+                        "description": str(function.get("description") or ""),
+                        "parameters": function.get("parameters") or {"type": "object", "properties": {}},
+                    },
+                }
+            )
+        if cleaned:
+            payload["tools"] = cleaned
             payload["tool_choice"] = "auto"
+        log.debug("llm tools=%d temp=%s msgs=%d", len(cleaned), payload.get("temperature"), len(messages))
         try:
             async with self.session.post(f"{self.cfg.llm_url}/chat/completions", json=payload) as resp:
                 body = await resp.text()

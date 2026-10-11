@@ -4,22 +4,35 @@ running aimrealtime server, using a real WAV as the microphone input."""
 import asyncio
 import base64
 import json
+import os
 import sys
 import time
 import wave
 
 import websockets
 
-URL = "ws://127.0.0.1:8099/v1/realtime?model=aimrealtime"
-KEY = "testkey"
+URL = os.environ.get("AIMRT_URL", "ws://127.0.0.1:8099/v1/realtime?model=aimrealtime")
+KEY = os.environ.get("AIMRT_KEY", "testkey")
 WAV = sys.argv[1] if len(sys.argv) > 1 else "../.scratch/user_question.wav"
 EXPECT_TOOL = "--expect-tool" in sys.argv
 
 CHAT_TOOL = {
     "type": "function",
     "name": "generate_chat_completion",
-    "description": "Handle substantive questions and tasks using the selected chat model.",
-    "parameters": {"type": "object", "properties": {"request": {"type": "string"}}, "required": ["request"]},
+    "description": (
+        "Handle substantive questions and tasks using the selected chat model, conversation history, "
+        "and configured tools. Use when new reasoning, information, or actions are needed. Always "
+        "use for questions about chat tools, capabilities, permissions, or model identity unless a "
+        "previous function result already answers them. Do not use for small talk, acknowledgments, "
+        "call status, clarification, repeating or rephrasing an available answer, or duplicating "
+        "pending or completed work."
+    ),
+    "parameters": {
+        "type": "object",
+        "properties": {"request": {"type": "string"}},
+        "required": ["request"],
+        "additionalProperties": False,
+    },
 }
 
 
@@ -116,6 +129,9 @@ async def main() -> int:
                 )
                 await ws.send(json.dumps({"type": "response.create", "response": {"metadata": {"call_id": item["call_id"]}}}))
                 responded.add("tool")
+                continue
+            if kind == "response.output_audio_transcript.done":
+                print(f"[recv] spoken: {ev.get('transcript','')!r}")
                 continue
             if kind == "response.done":
                 done_count += 1

@@ -32,9 +32,9 @@ PRESETS = {"auto", "female", "male", "child", "whisper"}
 BASE_PROMPT = (
     "You are a warm, concise voice assistant inside a phone-style call. "
     "Keep spoken replies to one or two short sentences unless asked for more. "
-    "Never read formatting characters aloud. "
-    "For anything needing reasoning, fresh information, tools or the user's documents, "
-    "call generate_chat_completion instead of answering from memory. "
+    "Never read formatting characters aloud and never write tool calls as text. "
+    "You have no internet access of your own: for weather, news, prices, current events, "
+    "the user's documents or anything needing tools, you call generate_chat_completion. "
     "Small talk, acknowledgements and clarifications you handle yourself."
 )
 
@@ -60,6 +60,51 @@ def sentences(text: str) -> list[str]:
         if part:
             out.append(part)
     return out or ([text.strip()] if text.strip() else [])
+
+
+def parse_pseudo_tool_call(text: str) -> dict | None:
+    """Recover a tool call the model wrote as text instead of tool_calls.
+
+    Observed on the Qwen3.8 vLLM stack: occasional samples print
+    {"name": "generate chat completion", "arguments": {...}} as content.
+    """
+    if not text:
+        return None
+    start, end = text.find("{"), text.rfind("}")
+    if start < 0 or end <= start:
+        return None
+    try:
+        data = json.loads(text[start : end + 1])
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    name = data.get("name") or data.get("tool") or data.get("tool_name")
+    if not isinstance(name, str):
+        return None
+    norm = re.sub(r"[^a-z_]", "", name.strip().lower().replace(" ", "_").replace("-", "_"))
+    if norm not in {"generate_chat_completion", "play_animation"}:
+        return None
+    args = data.get("arguments") or data.get("parameters") or data.get("args") or {}
+    if isinstance(args, str):
+        try:
+            args = json.loads(args)
+        except json.JSONDecodeError:
+            return None
+    if not isinstance(args, dict):
+        args = {}
+    if norm == "generate_chat_completion":
+        request = args.get("request") or args.get("message") or args.get("question") or args.get("query")
+        if not request:
+            request = " ".join(str(v) for v in args.values() if v)
+        if not str(request).strip():
+            return None
+        args = {"request": str(request)}
+    return {
+        "id": "call_" + uuid.uuid4().hex[:24],
+        "type": "function",
+        "function": {"name": norm, "arguments": json.dumps(args, ensure_ascii=False)},
+    }
 
 
 class Call:
@@ -320,6 +365,19 @@ class Call:
         messages.extend(self.history[-MAX_HISTORY:])
         message = await self.upstreams.chat(messages, self.tools)
         tool_calls = message.get("tool_calls") or []
+        if not tool_calls:
+            pseudo = parse_pseudo_tool_call(message.get("content") or "")
+            if pseudo:
+                log.info("recovered text-encoded tool call session=%s", self.session_id)
+                tool_calls = [pseudo]
+                message = dict(message, content="")
+        log.debug(
+            "llm decision session=%s tools=%d tool_calls=%d content=%r",
+            self.session_id,
+            len(self.tools),
+            len(tool_calls),
+            (message.get("content") or "")[:120],
+        )
         if tool_calls:
             await self._emit_tool_calls(rid, state, tool_calls)
             return
