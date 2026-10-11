@@ -12,7 +12,7 @@ metadata:
   icon: https://git.aimighty.olares.de/aimighty/aimrealtime/raw/branch/main/icon.png
   description: Realtime voice endpoint for Open WebUI 0.12 calls — orchestrates the AIM Qwen3 ASR, Qwen3.8 and OmniVoice apps over their OpenAI-compatible APIs, CPU only
   title: AIM Realtime Voice
-  version: '26.10.8'
+  version: '26.10.9'
   categories:
     - Audio
     - Applications
@@ -31,17 +31,21 @@ sharedEntrances:
 
 entrances:
   - name: aimrealtime
-    port: 8080
-    host: aimrealtime
+    port: 8090
+    host: download-svc
     title: AIM Realtime Voice
     icon: https://git.aimighty.olares.de/aimighty/aimrealtime/raw/branch/main/icon.png
     authLevel: internal
     invisible: true
 
 spec:
-  versionName: '26.10.8'
+  versionName: '26.10.9'
   onlyAdmin: true
   upgradeDescription: |
+    v26.10.9: Public entrance now points at the Model Console (llm-init, :8090)
+    like the other model applications, so the Router's model lifecycle
+    (status/spec via --app) works; /v1/* including the realtime WebSocket is
+    reverse-proxied to the orchestrator.
     v26.10.8: MODEL_NAME env so the Router attaches the model lifecycle to the
     app (spec show/status via --app), like the other model applications.
     v26.10.7: Model Console (llm-init) sidecar + shared entrance so the Olares

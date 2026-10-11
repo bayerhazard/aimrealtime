@@ -16,6 +16,25 @@ spec:
   selector:
     app: aimrealtime
 ---
+# The Model Console behind the public entrance: :8090 -> llm-init, which
+# serves the console (card/progress/health) and proxies /v1/* — including the
+# realtime WebSocket — to the orchestrator on 8080.
+apiVersion: v1
+kind: Service
+metadata:
+  name: download-svc
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: aimrealtime
+spec:
+  selector:
+    app: aimrealtime
+  ports:
+    - name: http
+      port: {{ .Values.llmInit.port }}
+      targetPort: {{ .Values.llmInit.port }}
+      protocol: TCP
+---
 # The Service behind the sharedEntrances stub: :80 -> llm-init:8090,
 # in-cluster only (no edge, no SSO). This is what the Olares Router reads
 # the model card from.
