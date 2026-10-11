@@ -29,7 +29,7 @@ jobs:
           GW=$(printf '%d.%d.%d.%d' 0x${GW_HEX:6:2} 0x${GW_HEX:4:2} 0x${GW_HEX:2:2} 0x${GW_HEX:0:2})
           echo "gateway=${GW}" >&2
           echo "DOCKER_HOST=tcp://${GW}:2375" >> "$GITHUB_ENV"
-          docker version
+          DOCKER_HOST="tcp://${GW}:2375" docker version
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
