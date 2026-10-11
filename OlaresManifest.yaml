@@ -12,7 +12,7 @@ metadata:
   icon: https://raw.githubusercontent.com/bayerhazard/aimrealtime/main/icon.png
   description: Realtime voice endpoint for Open WebUI 0.12 calls — orchestrates the AIM Qwen3 ASR, Qwen3.8 and OmniVoice apps over their OpenAI-compatible APIs, CPU only
   title: AIM Realtime Voice
-  version: '26.10.1'
+  version: '26.10.2'
   categories:
     - Audio
     - Applications
@@ -27,8 +27,11 @@ entrances:
     invisible: true
 
 spec:
-  versionName: '26.10.1'
+  versionName: '26.10.2'
   upgradeDescription: |
+    v26.10.2: Full provider implementation — streaming VAD, live transcription via
+    AIM Qwen3 ASR, thinking-free chat with generate_chat_completion handoff and
+    sentence-streamed OmniVoice speech, barge-in included.
     v26.10.1: Initial Release for AImighty. Speaks the OpenAI Realtime WebSocket
     protocol for Open WebUI 0.12 Realtime calls and orchestrates the installed
     AIM Qwen3 1.7B ASR, AIM Qwen3.8 27B and AIM OmniVoice 0.6B TTS apps.
