@@ -31,6 +31,9 @@ spec:
           emptyDir: {}
         - name: run-state
           emptyDir: {}
+        - name: nginx-conf
+          configMap:
+            name: aimrealtime-nginx
       initContainers:
         # llm-init runs as UID 1000 and must own its cache and run dir.
         - name: init-chown
@@ -146,3 +149,61 @@ spec:
             mountPath: /cache/hf/hub
           - name: run-state
             mountPath: /run/llm-init
+
+      # nginx front: the public entrance serves the Model Console for the
+      # Router's model lifecycle AND passes the realtime WebSocket straight to
+      # the orchestrator, which llm-init's HTTP-only proxy refuses (403).
+      - name: nginx
+        image: "{{ .Values.nginx.image }}"
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: {{ .Values.nginx.port }}
+            name: http
+        readinessProbe:
+          httpGet:
+            path: /livez
+            port: {{ .Values.nginx.port }}
+          initialDelaySeconds: 3
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+            {{- toYaml .Values.nginx.resources | nindent 10 }}
+        volumeMounts:
+          - name: nginx-conf
+            mountPath: /etc/nginx/conf.d/default.conf
+            subPath: default.conf
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aimrealtime-nginx
+  namespace: {{ .Release.Namespace }}
+data:
+  default.conf: |
+    server {
+        listen {{ .Values.nginx.port }};
+        server_name _;
+        client_max_body_size 64m;
+
+        # Realtime WebSocket straight to the orchestrator.
+        location /v1/realtime {
+            proxy_pass http://127.0.0.1:{{ .Values.port }};
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            proxy_set_header Host $host;
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+            proxy_buffering off;
+        }
+
+        # Everything else: the Model Console (card, progress, health, UI) and
+        # its /v1/* reverse proxy to the orchestrator.
+        location / {
+            proxy_pass http://127.0.0.1:{{ .Values.llmInit.port }};
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_read_timeout 300s;
+        }
+    }

@@ -32,7 +32,7 @@ spec:
   ports:
     - name: http
       port: {{ .Values.llmInit.port }}
-      targetPort: {{ .Values.llmInit.port }}
+      targetPort: {{ .Values.nginx.port }}
       protocol: TCP
 ---
 # The Service behind the sharedEntrances stub: :80 -> llm-init:8090,
@@ -51,5 +51,5 @@ spec:
   ports:
     - name: http
       port: 80
-      targetPort: {{ .Values.llmInit.port }}
+      targetPort: {{ .Values.nginx.port }}
       protocol: TCP

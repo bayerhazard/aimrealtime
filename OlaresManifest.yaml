@@ -12,7 +12,7 @@ metadata:
   icon: https://git.aimighty.olares.de/aimighty/aimrealtime/raw/branch/main/icon.png
   description: Realtime voice endpoint for Open WebUI 0.12 calls — orchestrates the AIM Qwen3 ASR, Qwen3.8 and OmniVoice apps over their OpenAI-compatible APIs, CPU only
   title: AIM Realtime Voice
-  version: '26.10.9'
+  version: '26.10.10'
   categories:
     - Audio
     - Applications
@@ -39,9 +39,13 @@ entrances:
     invisible: true
 
 spec:
-  versionName: '26.10.9'
+  versionName: '26.10.10'
   onlyAdmin: true
   upgradeDescription: |
+    v26.10.10: nginx front (entrance and shared entrance): the Model Console
+    stays the app's face for the Router lifecycle, while /v1/realtime is
+    proxied straight to the orchestrator — llm-init's HTTP-only proxy refuses
+    WebSocket upgrades.
     v26.10.9: Public entrance now points at the Model Console (llm-init, :8090)
     like the other model applications, so the Router's model lifecycle
     (status/spec via --app) works; /v1/* including the realtime WebSocket is

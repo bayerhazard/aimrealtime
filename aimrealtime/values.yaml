@@ -1,12 +1,25 @@
 image:
   repository: git.aimighty.olares.de/aimighty/aimrealtime
-  tag: "0.5.3"
+  tag: "0.5.4"
   # Quoted single string: Olares' app-service mis-parses an unquoted
   # "repo:tag" value that comes from a YAML mapping.
-  full: "git.aimighty.olares.de/aimighty/aimrealtime:0.5.3"
+  full: "git.aimighty.olares.de/aimighty/aimrealtime:0.5.4"
   pullPolicy: IfNotPresent
 
 port: 8080
+
+# nginx front (entrance + shared entrance); /v1/realtime bypasses the
+# HTTP-only Model Console proxy.
+nginx:
+  image: nginx:alpine
+  port: 8081
+  resources:
+    limits:
+      cpu: "500m"
+      memory: 256Mi
+    requests:
+      cpu: "50m"
+      memory: 32Mi
 
 # Model Console sidecar (Olares Router discovery). Serves the model card on
 # :8090 and backs the sharedentrances-api Service; waits for the advertised
