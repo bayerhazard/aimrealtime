@@ -12,7 +12,7 @@ metadata:
   icon: https://raw.githubusercontent.com/bayerhazard/aimrealtime/main/icon.png
   description: Realtime voice endpoint for Open WebUI 0.12 calls — drives this Olares' Router models (STT, chat, TTS) over their OpenAI-compatible APIs, CPU only, zero configuration
   title: AIM Realtime Voice
-  version: '26.10.16'
+  version: '26.10.17'
   categories:
     - Audio
     - Applications
@@ -39,9 +39,12 @@ entrances:
     invisible: true
 
 spec:
-  versionName: '26.10.16'
+  versionName: '26.10.17'
   onlyAdmin: true
   upgradeDescription: |
+    v26.10.17: Status announcements (working / approval / deferred) are spoken
+    as their message again instead of a bare "Okay." when they arrive with a
+    metadata.status (image 0.6.5).
     v26.10.16: Hardening for Open WebUI 0.12 voice calls, and /healthz reports the running version (image 0.6.4). Open
     WebUI ends a call on any provider error event, so a transient speech
     recognition or synthesis failure now stays silent instead of erroring, and

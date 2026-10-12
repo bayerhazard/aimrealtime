@@ -338,12 +338,15 @@ class Call:
         try:
             metadata = state["metadata"]
             instructions = request.get("instructions")
-            if isinstance(instructions, str) and instructions.strip() and not metadata:
-                await self._speak(rid, state, self._status_text(instructions))
-            elif metadata.get("call_id"):
+            if metadata.get("call_id"):
                 await self._speak_function_result(rid, state, metadata["call_id"])
             elif metadata.get("input_item_id"):
                 await self._respond_llm(rid, state)
+            elif isinstance(instructions, str) and instructions.strip():
+                # Status announcements (working / approval / deferred) carry an
+                # instruction and a metadata.status; speak the instruction, not
+                # a generic acknowledgement.
+                await self._speak(rid, state, self._status_text(instructions))
             else:
                 await self._speak(rid, state, "Okay.")
         except asyncio.CancelledError:

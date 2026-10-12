@@ -2,7 +2,7 @@
 
 import os
 
-APP_VERSION = "26.10.16"
+APP_VERSION = "26.10.17"
 
 
 def env(name: str, default: str = "") -> str:
