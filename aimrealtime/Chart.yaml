@@ -1,6 +1,6 @@
 apiVersion: v2
-appVersion: '26.10.15'
+appVersion: '26.10.16'
 description: Realtime voice endpoint for Open WebUI 0.12 calls — orchestrates the AIM Qwen3 ASR, Qwen3.8 and OmniVoice apps over their OpenAI-compatible APIs, CPU only
 name: aimrealtime
 type: application
-version: '26.10.15'
+version: '26.10.16'

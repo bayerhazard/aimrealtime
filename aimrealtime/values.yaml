@@ -1,6 +1,6 @@
 image:
   repository: ghcr.io/bayerhazard/aimrealtime
-  tag: "0.6.3"
+  tag: "0.6.4"
   # Quoted single string: Olares' app-service mis-parses an unquoted
   # "repo:tag" value that comes from a YAML mapping.
   full: "ghcr.io/bayerhazard/aimrealtime:0.6.1"
