@@ -12,7 +12,7 @@ metadata:
   icon: https://raw.githubusercontent.com/bayerhazard/aimrealtime/main/icon.png
   description: Realtime voice endpoint for Open WebUI 0.12 calls — drives this Olares' Router models (STT, chat, TTS) over their OpenAI-compatible APIs, CPU only, zero configuration
   title: AIM Realtime Voice
-  version: '26.10.11'
+  version: '26.10.12'
   categories:
     - Audio
     - Applications
@@ -39,9 +39,11 @@ entrances:
     invisible: true
 
 spec:
-  versionName: '26.10.11'
+  versionName: '26.10.12'
   onlyAdmin: true
   upgradeDescription: |
+    v26.10.12: Fixes the /healthz crash that left the pod unready after the
+    26.10.11 Router auto-discovery (image 0.6.1).
     v26.10.11: Installs on any Olares without a single environment value. The
     upstreams are resolved through this machine's Router (default-stt /
     default-chat / default-tts), so no app routes or model names are needed;

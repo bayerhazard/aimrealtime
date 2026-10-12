@@ -62,6 +62,10 @@ class RouterEndpoint:
     def resolved(self) -> bool:
         return self._resolved is not None
 
+    @property
+    def endpoint(self) -> tuple[str, dict[str, str]] | None:
+        return self._resolved
+
     def candidates(self, request_host: str = "") -> list[tuple[str, dict[str, str]]]:
         if self.override:
             return [(self.override, {})]

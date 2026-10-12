@@ -36,7 +36,7 @@ app = FastAPI(title="AIM Realtime Voice", version=APP_VERSION, lifespan=lifespan
 
 @app.get("/healthz")
 async def healthz() -> JSONResponse:
-    resolved = UPSTREAMS.router.resolved
+    resolved = UPSTREAMS.router.endpoint
     base, headers = resolved if resolved else ("(unresolved)", {})
     return JSONResponse(
         {
