@@ -1,9 +1,9 @@
 image:
-  repository: git.aimighty.olares.de/aimighty/aimrealtime
-  tag: "0.5.4"
+  repository: ghcr.io/bayerhazard/aimrealtime
+  tag: "0.6.0"
   # Quoted single string: Olares' app-service mis-parses an unquoted
   # "repo:tag" value that comes from a YAML mapping.
-  full: "git.aimighty.olares.de/aimighty/aimrealtime:0.5.4"
+  full: "ghcr.io/bayerhazard/aimrealtime:0.6.0"
   pullPolicy: IfNotPresent
 
 port: 8080
@@ -35,10 +35,9 @@ llmInit:
       cpu: "200m"
       memory: 256Mi
 
-# CPU-only orchestrator: keep it off the worker, whose CPU-request budget is
-# the tighter one; the master has no GPU work for this app to contend with.
-nodeSelector:
-  kubernetes.io/hostname: olares
+# No node pin: the app is CPU-only and must schedule on any Olares, single
+# node or not. This machine's master is not necessarily called "olares".
+nodeSelector: {}
 
 workloads:
   aimrealtime:

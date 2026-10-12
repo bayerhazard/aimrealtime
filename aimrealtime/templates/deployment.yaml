@@ -34,6 +34,10 @@ spec:
         - name: nginx-conf
           configMap:
             name: aimrealtime-nginx
+        - name: mesh-in-hosts
+          configMap:
+            name: olares-mesh-in-shared-hosts
+            optional: true
       initContainers:
         # llm-init runs as UID 1000 and must own its cache and run dir.
         - name: init-chown
@@ -59,17 +63,21 @@ spec:
           - name: API_KEY
             value: {{ .Values.olaresEnv.API_KEY | default "" | quote }}
           - name: UPSTREAM_STT_URL
-            value: {{ .Values.olaresEnv.UPSTREAM_STT_URL | default "https://d6df5317.aimighty.olares.de/v1" | quote }}
+            value: {{ .Values.olaresEnv.UPSTREAM_STT_URL | default "" | quote }}
           - name: UPSTREAM_TTS_URL
-            value: {{ .Values.olaresEnv.UPSTREAM_TTS_URL | default "https://adf17dad.aimighty.olares.de/v1" | quote }}
+            value: {{ .Values.olaresEnv.UPSTREAM_TTS_URL | default "" | quote }}
           - name: UPSTREAM_LLM_URL
-            value: {{ .Values.olaresEnv.UPSTREAM_LLM_URL | default "https://ef3336a5.aimighty.olares.de/v1" | quote }}
+            value: {{ .Values.olaresEnv.UPSTREAM_LLM_URL | default "" | quote }}
           - name: STT_MODEL
-            value: {{ .Values.olaresEnv.STT_MODEL | default "Qwen/Qwen3-ASR-1.7B" | quote }}
+            value: {{ .Values.olaresEnv.STT_MODEL | default "default-stt" | quote }}
           - name: TTS_MODEL
-            value: {{ .Values.olaresEnv.TTS_MODEL | default "omnivoice" | quote }}
+            value: {{ .Values.olaresEnv.TTS_MODEL | default "default-tts" | quote }}
           - name: LLM_MODEL
-            value: {{ .Values.olaresEnv.LLM_MODEL | default "qwen3.8-27b" | quote }}
+            value: {{ .Values.olaresEnv.LLM_MODEL | default "default-chat" | quote }}
+          - name: OLARES_GATEWAY_HOST
+            value: {{ .Values.olaresEnv.OLARES_GATEWAY_HOST | default "app-gateway-data.os-gateway.svc" | quote }}
+          - name: ROUTER_BASE_URL
+            value: {{ .Values.olaresEnv.ROUTER_BASE_URL | default "" | quote }}
           - name: DEFAULT_VOICE
             value: {{ .Values.olaresEnv.DEFAULT_VOICE | default "female" | quote }}
           - name: VAD_THRESHOLD
@@ -78,6 +86,13 @@ spec:
             value: {{ .Values.olaresEnv.MAX_CALLS | default "2" | quote }}
           - name: LOG_LEVEL
             value: {{ .Values.olaresEnv.LOG_LEVEL | default "info" | quote }}
+        volumeMounts:
+          # Platform-managed list of this Olares' route hosts; the router base
+          # domain is read from it. The ConfigMap appears shortly after install,
+          # hence optional.
+          - name: mesh-in-hosts
+            mountPath: /var/run/olares/mesh-in-shared-hosts
+            readOnly: true
         ports:
           - containerPort: {{ .Values.port }}
             name: http

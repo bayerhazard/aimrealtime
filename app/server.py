@@ -36,7 +36,18 @@ app = FastAPI(title="AIM Realtime Voice", version=APP_VERSION, lifespan=lifespan
 
 @app.get("/healthz")
 async def healthz() -> JSONResponse:
-    return JSONResponse({"status": "ok", "version": APP_VERSION, "active_calls": ACTIVE_CALLS, "config": CFG.masked()})
+    resolved = UPSTREAMS.router.resolved
+    base, headers = resolved if resolved else ("(unresolved)", {})
+    return JSONResponse(
+        {
+            "status": "ok",
+            "version": APP_VERSION,
+            "active_calls": ACTIVE_CALLS,
+            "router": base,
+            "router_host": headers.get("Host", ""),
+            "config": CFG.masked(),
+        }
+    )
 
 
 @app.get("/v1/models")
@@ -61,6 +72,9 @@ async def models() -> JSONResponse:
 @app.websocket("/v1/realtime")
 async def realtime(ws: WebSocket) -> None:
     global ACTIVE_CALLS
+    # The entrance Host tells us this machine's base domain, which is how the
+    # Router is found when the platform hosts file is not mounted.
+    UPSTREAMS.request_host = ws.headers.get("host", "")
     if CFG.api_key:
         if ws.headers.get("authorization", "") != f"Bearer {CFG.api_key}":
             await ws.close(code=4401)

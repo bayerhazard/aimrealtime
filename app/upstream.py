@@ -1,8 +1,10 @@
-"""OpenAI-compatible clients for the AIM speech and chat apps.
+"""OpenAI-compatible clients for speech and chat.
 
-All three upstreams are called over the Olares appid routes with the same
-bearer-free in-cluster access the Router uses. Credentials are not needed;
-the services are reachable pod-to-pod.
+Upstreams are addressed through the Router of this Olares, which resolves
+the default categories (default-stt / default-chat / default-tts) to whatever
+models this machine actually has. The Router reads the caller from the
+platform edge, so no credential is involved. UPSTREAM_*_URL still overrides
+that, but an override that does not answer here is dropped at startup.
 """
 
 import json
@@ -12,22 +14,51 @@ import uuid
 import aiohttp
 
 from audio import resample, pcm_to_wav, wav_to_pcm
+from router import RouterEndpoint
 
 log = logging.getLogger("aimrealtime.upstream")
+
+_ATTR = {"stt": "stt_url", "tts": "tts_url", "llm": "llm_url"}
 
 
 class UpstreamError(RuntimeError):
     pass
 
 
+def _fail(kind: str, status: int, body: str) -> UpstreamError:
+    text = body[:200]
+    if "no_default_model" in text:
+        text = f"this Olares has no {kind} model behind its Router category ({text})"
+    elif "model_not_ready" in text:
+        text = f"the {kind} model is still loading (retry shortly)"
+    return UpstreamError(f"{kind} {status}: {text}")
+
+
 class Upstreams:
     def __init__(self, cfg) -> None:
         self.cfg = cfg
+        self.router = RouterEndpoint()
+        self.request_host = ""
         self._session: aiohttp.ClientSession | None = None
 
     async def start(self) -> None:
         timeout = aiohttp.ClientTimeout(total=120, connect=10, sock_read=110)
         self._session = aiohttp.ClientSession(timeout=timeout)
+        for kind, attr in _ATTR.items():
+            url = getattr(self.cfg, attr)
+            if url and not await self.router.probe(url, {}):
+                log.warning("%s upstream %s does not answer here, using the Router", kind, url)
+                setattr(self.cfg, attr, "")
+        await self.router.get(self.request_host)
+
+    async def target(self, kind: str) -> tuple[str, dict[str, str]]:
+        url = getattr(self.cfg, _ATTR[kind])
+        if url:
+            return url, {}
+        base, headers = await self.router.get(self.request_host)
+        if not base:
+            raise UpstreamError(f"no reachable Router on this Olares (used for {kind})")
+        return base, headers
 
     async def close(self) -> None:
         if self._session:
@@ -42,17 +73,19 @@ class Upstreams:
 
     async def transcribe(self, pcm24k: bytes, model: str) -> str:
         wav = pcm_to_wav(resample(pcm24k, 24000, 16000), rate=16000)
+        base, headers = await self.target("stt")
         form = aiohttp.FormData()
         form.add_field("model", model or self.cfg.stt_model)
         form.add_field("file", wav, filename="segment.wav", content_type="audio/wav")
         try:
-            async with self.session.post(f"{self.cfg.stt_url}/audio/transcriptions", data=form) as resp:
+            async with self.session.post(f"{base}/audio/transcriptions", data=form, headers=headers) as resp:
                 body = await resp.text()
                 if resp.status != 200:
-                    raise UpstreamError(f"stt {resp.status}: {body[:200]}")
+                    raise _fail("stt", resp.status, body)
                 data = json.loads(body)
                 return (data.get("text") or "").strip()
         except aiohttp.ClientError as exc:
+            self.router.invalidate()
             raise UpstreamError(f"stt transport: {exc}") from exc
 
     async def chat(self, messages: list[dict], tools: list[dict]) -> dict:
@@ -92,8 +125,9 @@ class Upstreams:
             payload["tools"] = cleaned
             payload["tool_choice"] = "auto"
         log.debug("llm tools=%d temp=%s msgs=%d", len(cleaned), payload.get("temperature"), len(messages))
+        base, headers = await self.target("llm")
         try:
-            async with self.session.post(f"{self.cfg.llm_url}/chat/completions", json=payload) as resp:
+            async with self.session.post(f"{base}/chat/completions", json=payload, headers=headers) as resp:
                 body = await resp.text()
                 if resp.status != 200:
                     log.warning(
@@ -103,22 +137,25 @@ class Upstreams:
                         len(payload.get("tools") or []),
                         body[:300],
                     )
-                    raise UpstreamError(f"llm {resp.status}: {body[:200]}")
+                    raise _fail("llm", resp.status, body)
                 data = json.loads(body)
                 return data["choices"][0]["message"] or {}
         except aiohttp.ClientError as exc:
+            self.router.invalidate()
             raise UpstreamError(f"llm transport: {exc}") from exc
 
     async def tts(self, text: str, voice: str) -> bytes:
         payload = {"model": self.cfg.tts_model, "input": text, "voice": voice, "response_format": "wav"}
+        base, headers = await self.target("tts")
         try:
-            async with self.session.post(f"{self.cfg.tts_url}/audio/speech", json=payload) as resp:
+            async with self.session.post(f"{base}/audio/speech", json=payload, headers=headers) as resp:
                 if resp.status != 200:
                     body = await resp.text()
-                    raise UpstreamError(f"tts {resp.status}: {body[:200]}")
+                    raise _fail("tts", resp.status, body)
                 data = await resp.read()
                 ctype = resp.headers.get("content-type", "")
         except aiohttp.ClientError as exc:
+            self.router.invalidate()
             raise UpstreamError(f"tts transport: {exc}") from exc
         if "wav" not in ctype and not data[:4] == b"RIFF":
             raise UpstreamError(f"tts: unexpected content type {ctype!r}")

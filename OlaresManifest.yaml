@@ -9,10 +9,10 @@ workloadReplicas:
 metadata:
   name: aimrealtime
   appid: aimrealtime
-  icon: https://git.aimighty.olares.de/aimighty/aimrealtime/raw/branch/main/icon.png
-  description: Realtime voice endpoint for Open WebUI 0.12 calls — orchestrates the AIM Qwen3 ASR, Qwen3.8 and OmniVoice apps over their OpenAI-compatible APIs, CPU only
+  icon: https://raw.githubusercontent.com/bayerhazard/aimrealtime/main/icon.png
+  description: Realtime voice endpoint for Open WebUI 0.12 calls — drives this Olares' Router models (STT, chat, TTS) over their OpenAI-compatible APIs, CPU only, zero configuration
   title: AIM Realtime Voice
-  version: '26.10.10'
+  version: '26.10.11'
   categories:
     - Audio
     - Applications
@@ -27,21 +27,29 @@ sharedEntrances:
     title: AIM Realtime Voice
     invisible: true
     authLevel: internal
-    icon: https://git.aimighty.olares.de/aimighty/aimrealtime/raw/branch/main/icon.png
+    icon: https://raw.githubusercontent.com/bayerhazard/aimrealtime/main/icon.png
 
 entrances:
   - name: aimrealtime
     port: 8090
     host: download-svc
     title: AIM Realtime Voice
-    icon: https://git.aimighty.olares.de/aimighty/aimrealtime/raw/branch/main/icon.png
+    icon: https://raw.githubusercontent.com/bayerhazard/aimrealtime/main/icon.png
     authLevel: internal
     invisible: true
 
 spec:
-  versionName: '26.10.10'
+  versionName: '26.10.11'
   onlyAdmin: true
   upgradeDescription: |
+    v26.10.11: Installs on any Olares without a single environment value. The
+    upstreams are resolved through this machine's Router (default-stt /
+    default-chat / default-tts), so no app routes or model names are needed;
+    explicit UPSTREAM_*_URL overrides still work and are dropped automatically
+    when they do not answer here. The Router endpoint and this machine's base
+    domain are discovered on their own. MODEL_* are no longer required fields,
+    API_KEY is optional (empty = no bearer, the Olares edge already gates the
+    entrance), and the image moved to ghcr.io so any node can pull it.
     v26.10.10: nginx front (entrance and shared entrance): the Model Console
     stays the app's face for the Router lifecycle, while /v1/realtime is
     proxied straight to the orchestrator — llm-init's HTTP-only proxy refuses
@@ -77,31 +85,35 @@ spec:
     have through their OpenAI-compatible APIs.
 
     **Model**
-    None of its own. Speech recognition comes from AIM Qwen3 1.7B ASR
-    (`/v1/audio/transcriptions`), the conversation from AIM Qwen3.8 27B
-    (`/v1/chat/completions`, thinking disabled per request for latency) and the
-    voice from AIM OmniVoice 0.6B TTS (`/v1/audio/speech`). All three run in
-    their own applications; this app only orchestrates.
+    None of its own. It calls the Router of this Olares — the platform's AI
+    gateway — and asks for its default categories: `default-stt` for speech
+    recognition, `default-chat` for the conversation, `default-tts` for the
+    voice. The Router resolves those to whatever models this machine has, so
+    the app works on any Olares with an ASR, chat and TTS model installed and
+    needs no credential: the platform stamps the caller at its edge. Point it
+    at fixed services instead by setting the UPSTREAM_* URLs yourself.
 
     **Inference Engine**
     A small Python service (FastAPI, Silero VAD on CPU) that speaks the realtime
     event set Open WebUI's voice bridge uses: session handshake, server-side VAD,
     live transcription events, response lifecycle, barge-in, and the
     `generate_chat_completion` function call Open WebUI uses to hand substantive
-    questions to the chat's selected model. Runs on the master node, no GPU.
+    questions to the chat's selected model. No GPU.
 
     **Key Features**
     - Open WebUI 0.12 Realtime call mode: Admin > Settings > Audio > Voice calls
-    - Reuses the installed AIM ASR / LLM / TTS apps; additional VRAM: zero
+    - Reuses the ASR / chat / TTS models already installed here; additional VRAM: zero
+    - Finds this machine's Router and base domain automatically — install it,
+      type nothing, it connects
     - Function-call handoff to the chat model, with tool approvals staying in chat
-    - Configurable upstream URLs, voice and concurrency; bearer-protected endpoint
+    - Configurable upstream URLs, voice and concurrency; optional bearer protection
 
     **API**
     ```bash
-    # Open WebUI base URL (Admin > Audio > Voice calls)
-    https://<appid>.aimighty.olares.de/v1
-    # Health
-    curl https://<appid>.aimighty.olares.de/healthz
+    # Open WebUI base URL (Admin > Audio > Voice calls): this app's own route
+    https://<app-route>/v1
+    # Health — shows the Router it resolved for this machine
+    curl https://<app-route>/healthz
     ```
 
     **Resource Usage**
@@ -145,86 +157,103 @@ envs:
     default: "aimrealtime"
     description: "Model id this endpoint advertises (Open WebUI sends it as ?model=)."
   - envName: MODEL_NAME
-    required: true
+    required: false
     type: string
     editable: false
     applyOnChange: false
     default: "aimrealtime"
     description: "Model id the app serves. The Olares Router reads MODEL_NAME from the app envs to attach the model lifecycle to the application."
   - envName: MODEL_MODE
-    required: true
+    required: false
     type: string
     editable: false
     applyOnChange: false
     default: "audio"
     description: "Model Console card mode. Must stay 'audio' for the Router's audio-s2s category."
   - envName: MODEL_SUPPORTS
-    required: true
+    required: false
     type: string
     editable: false
     applyOnChange: false
     default: "supports_audio_s2s"
     description: "Capability flags the Router reconciles into default categories; supports_audio_s2s fills default-audio-s2s."
   - envName: MODEL_SOURCE
-    required: true
+    required: false
     type: string
     editable: false
     applyOnChange: false
     default: "hf://Qwen/Qwen3-0.6B --include config.json"
     description: "Placeholder download the Model Console requires (config only, a few KB); the service has no weights of its own."
   - envName: API_KEY
-    required: true
+    required: false
     type: password
     editable: true
     applyOnChange: true
-    regex: "^.{16,}$"
-    description: "Bearer token Open WebUI must send (Admin > Audio > Voice calls > API key)."
+    default: ""
+    description: "Optional bearer token (Admin > Audio > Voice calls > API key). Empty means no bearer check: the Olares edge already gates the entrance."
   - envName: UPSTREAM_STT_URL
     required: false
     type: string
     editable: true
     applyOnChange: true
-    default: "https://d6df5317.aimighty.olares.de/v1"
-    description: "OpenAI-compatible transcription endpoint (AIM Qwen3 ASR)."
+    default: ""
+    description: "Optional fixed transcription endpoint. Leave empty to use this Olares' Router (default-stt)."
   - envName: UPSTREAM_LLM_URL
     required: false
     type: string
     editable: true
     applyOnChange: true
-    default: "https://ef3336a5.aimighty.olares.de/v1"
-    description: "OpenAI-compatible chat endpoint (AIM Qwen3.8 27B); thinking is disabled per request."
+    default: ""
+    description: "Optional fixed chat endpoint. Leave empty to use this Olares' Router (default-chat)."
   - envName: UPSTREAM_TTS_URL
     required: false
     type: string
     editable: true
     applyOnChange: true
-    default: "https://adf17dad.aimighty.olares.de/v1"
-    description: "OpenAI-compatible speech endpoint (AIM OmniVoice TTS)."
+    default: ""
+    description: "Optional fixed speech endpoint. Leave empty to use this Olares' Router (default-tts)."
   - envName: STT_MODEL
     required: false
     type: string
     editable: true
     applyOnChange: true
-    default: "Qwen/Qwen3-ASR-1.7B"
+    default: "default-stt"
+    description: "Router category or model id for transcription."
   - envName: LLM_MODEL
     required: false
     type: string
     editable: true
     applyOnChange: true
-    default: "qwen3.8-27b"
+    default: "default-chat"
+    description: "Router category or model id for the conversation."
   - envName: TTS_MODEL
     required: false
     type: string
     editable: true
     applyOnChange: true
-    default: "omnivoice"
+    default: "default-tts"
+    description: "Router category or model id for speech."
+  - envName: ROUTER_BASE_URL
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: ""
+    description: "Override for the Router base URL (…/v1). Only for exotic setups; discovery works out of the box."
+  - envName: OLARES_GATEWAY_HOST
+    required: false
+    type: string
+    editable: true
+    applyOnChange: true
+    default: "app-gateway-data.os-gateway.svc"
+    description: "Cluster address of the Olares edge used to reach the Router in-cluster."
   - envName: DEFAULT_VOICE
     required: false
     type: string
     editable: true
     applyOnChange: true
     default: "female"
-    description: "OmniVoice preset used when Open WebUI's voice name is unknown."
+    description: "Voice preset used when Open WebUI's voice name is unknown."
   - envName: VAD_THRESHOLD
     required: false
     type: string
