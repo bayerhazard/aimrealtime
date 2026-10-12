@@ -248,8 +248,10 @@ class Call:
         try:
             text = await self.upstreams.transcribe(pcm, self.transcription_model)
         except UpstreamError as exc:
+            # Open WebUI treats any provider `error` event as fatal and drops
+            # the call. A failed utterance is recoverable, so stay silent and
+            # let the user simply repeat it.
             log.warning("stt failed session=%s: %s", self.session_id, exc)
-            await self.error("transcription_failed", "Speech recognition failed")
             return
         if not text:
             log.info("empty transcript session=%s item=%s", self.session_id, item_id)
@@ -377,28 +379,52 @@ class Call:
                 log.info("recovered text-encoded tool call session=%s", self.session_id)
                 tool_calls = [pseudo]
                 message = dict(message, content="")
+        allowed = self.allowed_tool_names()
+        chosen = [c for c in tool_calls if self._call_name(c) in allowed]
+        for call in tool_calls:
+            if self._call_name(call) not in allowed:
+                # A model with its own built-in toolset can name functions Open
+                # WebUI never declared; forwarding one aborts the call there
+                # ("Unexpected voice function"). Drop it here instead.
+                log.info("dropping undeclared tool call name=%r session=%s", self._call_name(call), self.session_id)
         log.debug(
-            "llm decision session=%s tools=%d tool_calls=%d content=%r",
+            "llm decision session=%s tools=%d tool_calls=%d chosen=%d content=%r",
             self.session_id,
             len(self.tools),
             len(tool_calls),
+            len(chosen),
             (message.get("content") or "")[:120],
         )
-        if tool_calls:
-            await self._emit_tool_calls(rid, state, tool_calls)
+        if chosen:
+            await self._emit_tool_calls(rid, state, chosen)
             return
         content = speech_text(message.get("content") or "")
         if content:
             await self._speak(rid, state, content)
+        elif tool_calls:
+            await self._speak(rid, state, "Das kann ich gerade nicht und bleibe beim Gespräch.")
         else:
             await self.finish(rid, state, "completed")
+
+    @staticmethod
+    def _call_name(call: dict) -> str:
+        function = call.get("function") if isinstance(call.get("function"), dict) else {}
+        return str(function.get("name") or call.get("name") or "")
+
+    def allowed_tool_names(self) -> set[str]:
+        names: set[str] = set()
+        for tool in self.tools:
+            function = tool.get("function") if isinstance(tool.get("function"), dict) else tool
+            name = function.get("name") if isinstance(function, dict) else None
+            if isinstance(name, str) and name:
+                names.add(name)
+        return names
 
     async def _emit_tool_calls(self, rid: str, state: dict, tool_calls: list) -> None:
         for index, call in enumerate(tool_calls):
             function = call.get("function") or {}
-            name = str(function.get("name") or "")
-            if name not in {"generate_chat_completion", "play_animation"}:
-                log.info("ignoring unconfigured tool call name=%s", name)
+            name = self._call_name(call)
+            if not name:
                 continue
             item_id = self.new_item("fc")
             await self.send(
@@ -440,12 +466,9 @@ class Call:
         for sentence in sentences(text):
             if state["cancelled"]:
                 break
-            try:
-                pcm = await self.upstreams.tts(sentence, self.voice)
-            except UpstreamError as exc:
-                log.warning("tts failed session=%s: %s", self.session_id, exc)
-                break
             full_text = (full_text + " " + sentence).strip()
+            # Transcribe first: if synthesis fails the caller still sees what
+            # was meant to be said, and no `error` event aborts the call.
             await self.send(
                 {
                     "type": "response.output_audio_transcript.delta",
@@ -455,6 +478,11 @@ class Call:
                     "delta": sentence + " ",
                 }
             )
+            try:
+                pcm = await self.upstreams.tts(sentence, self.voice)
+            except UpstreamError as exc:
+                log.warning("tts failed session=%s: %s", self.session_id, exc)
+                break
             for off in range(0, len(pcm), CHUNK):
                 if state["cancelled"]:
                     break

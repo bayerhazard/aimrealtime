@@ -12,7 +12,7 @@ metadata:
   icon: https://raw.githubusercontent.com/bayerhazard/aimrealtime/main/icon.png
   description: Realtime voice endpoint for Open WebUI 0.12 calls — drives this Olares' Router models (STT, chat, TTS) over their OpenAI-compatible APIs, CPU only, zero configuration
   title: AIM Realtime Voice
-  version: '26.10.14'
+  version: '26.10.15'
   categories:
     - Audio
     - Applications
@@ -39,9 +39,16 @@ entrances:
     invisible: true
 
 spec:
-  versionName: '26.10.14'
+  versionName: '26.10.15'
   onlyAdmin: true
   upgradeDescription: |
+    v26.10.15: Hardening for Open WebUI 0.12 voice calls (image 0.6.3). Open
+    WebUI ends a call on any provider error event, so a transient speech
+    recognition or synthesis failure now stays silent instead of erroring, and
+    a tool call naming a function Open WebUI never declared (models with a
+    built-in toolset can name their own) is dropped before it can abort the
+    call. Spoken transcripts are emitted before synthesis, so the caller still
+    sees the words when the voice backend hiccups.
     v26.10.13: A client-specified transcription model (Open WebUI sends one) is
     ignored while the app runs on this machine's Router, which answers to its
     own categories; it stays honoured with a fixed upstream URL (image 0.6.2).
