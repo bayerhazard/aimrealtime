@@ -12,7 +12,7 @@ metadata:
   icon: https://raw.githubusercontent.com/bayerhazard/aimrealtime/main/icon.png
   description: Realtime voice endpoint for Open WebUI 0.12 calls — drives this Olares' Router models (STT, chat, TTS) over their OpenAI-compatible APIs, CPU only, zero configuration
   title: AIM Realtime Voice
-  version: '26.10.13'
+  version: '26.10.14'
   categories:
     - Audio
     - Applications
@@ -39,7 +39,7 @@ entrances:
     invisible: true
 
 spec:
-  versionName: '26.10.13'
+  versionName: '26.10.14'
   onlyAdmin: true
   upgradeDescription: |
     v26.10.13: A client-specified transcription model (Open WebUI sends one) is
