@@ -191,7 +191,13 @@ class Call:
         if isinstance(voice, str) and voice.strip():
             self.voice = self.map_voice(voice)
         tr = (audio.get("input") or {}).get("transcription") or {}
-        if isinstance(tr.get("model"), str) and tr["model"].strip():
+        if (
+            self.upstreams.fixed("stt")
+            and isinstance(tr.get("model"), str)
+            and tr["model"].strip()
+        ):
+            # Only a fixed upstream understands concrete model names; the Router
+            # of this Olares answers to its own categories (default-stt).
             self.transcription_model = tr["model"].strip()
         if isinstance(session.get("tools"), list):
             self.tools = [t for t in session["tools"] if isinstance(t, dict)]

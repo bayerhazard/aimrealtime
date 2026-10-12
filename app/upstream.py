@@ -51,6 +51,10 @@ class Upstreams:
                 setattr(self.cfg, attr, "")
         await self.router.get(self.request_host)
 
+    def fixed(self, kind: str) -> bool:
+        """True when this kind points at an explicit upstream URL, False when the Router answers."""
+        return bool(getattr(self.cfg, _ATTR[kind]))
+
     async def target(self, kind: str) -> tuple[str, dict[str, str]]:
         url = getattr(self.cfg, _ATTR[kind])
         if url:
